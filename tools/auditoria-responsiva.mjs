@@ -2,18 +2,29 @@
 // horizontales. Uso: node tools/auditoria-responsiva.mjs <url-base> <carpeta-de-salida>
 // Requiere Google Chrome instalado y la app corriendo (npm run dev).
 import { spawn } from 'node:child_process'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 
 const [base = 'http://127.0.0.1:5173', salida = 'docs/evidencias/pt11-responsivo'] = process.argv.slice(2)
 mkdirSync(salida, { recursive: true })
 const puerto = 9300 + (process.pid % 500)
-const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
+const candidatos = [process.env.CHROME_PATH, ...(process.platform === 'darwin'
+  ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
+  : process.platform === 'win32'
+    ? [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA].filter(Boolean).map((p) => `${p}/Google/Chrome/Application/chrome.exe`)
+    : ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'])]
+const ejecutable = candidatos.find((p) => p && existsSync(p))
+if (!ejecutable) throw new Error('No se encontró Chrome. Define CHROME_PATH con la ruta al ejecutable.')
+const chrome = spawn(ejecutable, [
   '--headless=new', '--hide-scrollbars', `--remote-debugging-port=${puerto}`, `--user-data-dir=${salida}/.chrome`, 'about:blank',
-], { stdio: 'ignore' })
+], { stdio: 'ignore', windowsHide: true })
+let falloChrome
+chrome.on('error', (e) => { falloChrome = e })
+process.on('exit', () => { chrome.kill() })
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms))
 
 let objetivo
 for (let i = 0; i < 80; i++) { try { objetivo = (await (await fetch(`http://127.0.0.1:${puerto}/json`)).json()).find((t) => t.type === 'page'); if (objetivo) break } catch { /* aún arrancando */ } await dormir(250) }
+if (!objetivo || falloChrome) { chrome.kill(); throw falloChrome ?? new Error('Chrome no abrió el puerto de depuración a tiempo.') }
 const ws = new WebSocket(objetivo.webSocketDebuggerUrl)
 await new Promise((r) => ws.addEventListener('open', r))
 let n = 0
@@ -24,13 +35,13 @@ const evaluar = async (expresion) => (await cdp('Runtime.evaluate', { expression
 
 const sesiones = {
   admin: { rol: 'admin', nombre: 'Liz Hernández', email: 'liz@lizcare.mx' },
-  paciente: { rol: 'paciente', nombre: 'Emily Carter', email: 'emily@demo.com', pacienteId: 'p1' },
+  paciente: { rol: 'paciente', nombre: 'Emily Carter', email: 'emily@demo.com', pacienteId: 'p2' },
 }
 const pantallas = [
   ['publica', '/'], ['publica', '/login'], ['publica', '/privacidad'],
   ['admin', '/admin'], ['admin', '/admin/pacientes'], ['admin', '/admin/pacientes/nuevo'], ['admin', '/admin/pacientes/p1?tab=consultas'],
   ['admin', '/admin/consultas/nueva?paciente=p1'], ['admin', '/admin/agenda'], ['admin', '/admin/especialistas'],
-  ['paciente', '/portal'], ['paciente', '/portal/citas'], ['paciente', '/portal/tratamiento'], ['paciente', '/portal/expediente'],
+  ['paciente', '/portal'], ['paciente', '/portal/citas'], ['paciente', '/portal/tratamiento'], ['paciente', '/portal/expediente'], ['paciente', '/portal/historial-inicial'],
 ]
 const anchos = [360, 390, 1440]
 const informe = []
@@ -63,3 +74,4 @@ const malas = informe.filter((x) => x.desborda || x.fuera.length)
 console.log(`${informe.length} pantallas revisadas; ${malas.length} con desborde`)
 for (const m of malas) console.log(` ✗ ${m.ancho}px ${m.ruta}: scrollWidth ${m.scrollWidth}/${m.ancho} ${m.fuera.join(' ')}`)
 process.exit(malas.length ? 1 : 0)
+

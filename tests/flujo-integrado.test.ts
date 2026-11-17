@@ -24,13 +24,18 @@ describe('Recorrido integrado con dos pacientes', () => {
     const especialistas: Especialista[] = []
     const consultas: Consulta[] = []
 
-    // M02: alta de dos pacientes, con acceso al portal.
-    const guardarPaciente = (p: NuevoPaciente) => { const n: Paciente = { ...p, id: `p${pacientes.length + 1}`, altaEl: AHORA.toISOString(), color: '#00a58c', portal: 'activo' }; pacientes.push(n); return n }
+    // M02: alta de dos pacientes, pendientes de activación del portal.
+    const guardarPaciente = (p: NuevoPaciente) => { const n: Paciente = { ...p, id: `p${pacientes.length + 1}`, altaEl: AHORA.toISOString(), color: '#00a58c' }; pacientes.push(n); return n }
     for (const [n, e] of [['Ana', 'ana@example.com'], ['Beto', 'beto@example.com']]) {
       const r = await registrarPaciente(alta(n, e), { sesion: admin, pacientes, guardar: guardarPaciente, invitarAlPortal: true, hoy: AHORA })
       expect(r.ok).toBe(true)
     }
     expect(pacientes).toHaveLength(2)
+    expect(pacientes.every((p) => p.portal === 'invitado')).toBe(true)
+    expect(iniciarSesionEnMemoria({ email: 'ana@example.com', password: 'demo123', rol: 'paciente', administradores: [], pacientes, passwordDemo: { admin: 'x', paciente: 'demo123' }, ahora: AHORA }).ok).toBe(false)
+    // Fixture explícita: el resto del recorrido parte de cuentas ya activadas.
+    // La activación no está implementada por el prototipo y no se acredita aquí.
+    pacientes.forEach((p) => { p.portal = 'activo' })
 
     // M11: catálogo y búsqueda.
     const guardarEsp = (e: NuevoEspecialista) => { const n = { ...e, id: `e${especialistas.length + 1}` }; especialistas.push(n); return n }
@@ -86,3 +91,4 @@ describe('Recorrido integrado con dos pacientes', () => {
     expect(JSON.stringify(expAdmin)).toContain('Solo administración')
   })
 })
+

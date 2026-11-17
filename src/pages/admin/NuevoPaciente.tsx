@@ -51,7 +51,7 @@ export default function NuevoPaciente() {
     const r = await registrarPaciente(f, { sesion, pacientes, guardar: agregarPaciente, invitarAlPortal: invitar, confirmaHomonimo: confirmarDuplicado })
     setGuardando(false)
     if (r.ok) {
-      notify(invitar ? `${r.paciente.nombre} fue registrado. Se envió la invitación al portal.` : `${r.paciente.nombre} fue registrado correctamente.`)
+      notify(invitar ? `${r.paciente.nombre} fue registrado. El acceso al portal quedó pendiente de activación.` : `${r.paciente.nombre} fue registrado correctamente.`)
       navigate(`/admin/pacientes/${r.paciente.id}`)
       return
     }
@@ -143,7 +143,7 @@ export default function NuevoPaciente() {
             </Field>
           </Seccion>
 
-          <Seccion icon={<Phone className="size-5" />} title="Contacto" desc="Por aquí recibirá su acceso al portal y recordatorios.">
+          <Seccion icon={<Phone className="size-5" />} title="Contacto" desc="Datos de contacto para coordinar el acceso al portal y el seguimiento.">
             <Field label="Teléfono / WhatsApp" required error={errores.telefono}><Input type="tel" value={f.telefono} onChange={set('telefono')} placeholder="+1 512 555 0142" {...inv('telefono')} /></Field>
             <Field label="Correo electrónico" required error={errores.email}><Input type="email" value={f.email} onChange={set('email')} placeholder="paciente@correo.com" {...inv('email')} /></Field>
           </Seccion>
@@ -168,8 +168,8 @@ export default function NuevoPaciente() {
         <div className="space-y-4 xl:sticky xl:top-24 xl:self-start">
           <Card className="p-5">
             <h3 className="font-bold">Acceso al portal</h3>
-            <p className="mt-1 text-sm text-ink-500">El paciente recibirá un correo para crear su contraseña y llenar su historial médico inicial.</p>
-            <div className="mt-4"><Toggle checked={invitar} onChange={setInvitar} label="Enviar invitación al portal" description={f.email || 'Al correo registrado'} /></div>
+            <p className="mt-1 text-sm text-ink-500">El registro puede quedar pendiente de activación del portal. Este prototipo no envía invitaciones ni crea contraseñas.</p>
+            <div className="mt-4"><Toggle checked={invitar} onChange={setInvitar} label="Dejar acceso pendiente de activación" description={f.email || 'Al correo registrado'} /></div>
           </Card>
           <Card className="p-5">
             <p className="text-sm text-ink-500">Los campos con <span className="font-bold text-brand-600">*</span> son obligatorios. Solo se guardan los datos necesarios para la atención del paciente (LFPDPPP).</p>
@@ -183,3 +183,4 @@ export default function NuevoPaciente() {
     </form>
   )
 }
+

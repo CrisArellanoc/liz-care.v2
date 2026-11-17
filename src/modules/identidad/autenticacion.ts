@@ -43,8 +43,12 @@ export function iniciarSesionEnMemoria(o: OpcionesAcceso): ResultadoAcceso {
 }
 
 export function sesionVigente(sesion: Sesion | null | undefined, ahora = new Date()): boolean {
-  if (!sesion) return false
-  if (!sesion.iniciadaEl) return true
+  if (!sesion || !['admin', 'paciente'].includes(sesion.rol)) return false
+  if (typeof sesion.nombre !== 'string' || typeof sesion.email !== 'string') return false
+  if (sesion.rol === 'paciente' && !sesion.pacienteId) return false
+  if (typeof sesion.iniciadaEl !== 'string') return false
   const t = Date.parse(sesion.iniciadaEl)
-  return Number.isFinite(t) && ahora.getTime() - t < DURACION_SESION_MS
+  const edad = ahora.getTime() - t
+  return Number.isFinite(t) && edad >= 0 && edad < DURACION_SESION_MS
 }
+

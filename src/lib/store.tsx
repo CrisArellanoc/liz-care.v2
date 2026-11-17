@@ -125,7 +125,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     const nuevo: Paciente = {
       ...p,
-      id: `p${Date.now()}`,
+      id: `p-${crypto.randomUUID()}`,
       altaEl: new Date().toISOString(),
       color: COLORES[Math.floor(Math.random() * COLORES.length)],
     }
@@ -138,7 +138,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const guardarEspecialista = useCallback((d: DatosEspecialista) => registrarEspecialista(d, {
     sesion,
     guardar: (e: NuevoEspecialista) => {
-      const nuevo: Especialista = { ...e, id: `e${Date.now()}` }
+      const nuevo: Especialista = { ...e, id: `e-${crypto.randomUUID()}` }
       setEspecialistas((es) => [...es, nuevo])
       return nuevo
     },
@@ -152,7 +152,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setConsultas((cs) => cs.map((x) => (x.id === id ? actualizada : x)))
         return actualizada
       }
-      const nueva: Consulta = { ...c, id: `c${Date.now()}` }
+      const nueva: Consulta = { ...c, id: `c-${crypto.randomUUID()}` }
       setConsultas((cs) => [...cs, nueva])
       return nueva
     },
@@ -179,3 +179,4 @@ export function useStore() {
   if (!ctx) throw new Error('useStore debe usarse dentro de StoreProvider')
   return ctx
 }
+

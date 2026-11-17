@@ -47,6 +47,8 @@ export function validarAtencion(d: DatosAtencion, c: ContextoAtencion): ErroresA
   const ahora = c.ahora ?? new Date()
   const e: ErroresAtencion = {}
   const completada = d.estado === 'completada'
+  if (d.estado !== 'programada' && d.estado !== 'completada') e.estado = 'Selecciona un estado válido.'
+  if (c.existente && (d.pacienteId !== c.existente.pacienteId)) e.paciente = 'No se puede cambiar el paciente de una atención existente.'
 
   if (!d.pacienteId) e.paciente = 'Selecciona un paciente.'
   else if (!c.pacientes.some((p) => p.id === d.pacienteId)) e.paciente = 'El paciente no existe.'
@@ -146,3 +148,4 @@ export function citasPendientesDeRegistro(consultas: Consulta[], pacienteId: str
   const hoy = diaEnLeon(ahora)
   return ordenCronologico(consultas.filter((c) => c.pacienteId === pacienteId && c.estado === 'programada' && diaEnLeon(c.fecha) < hoy), 'desc')
 }
+

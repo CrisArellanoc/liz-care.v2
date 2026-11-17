@@ -33,7 +33,7 @@ function tipoDe(a: DatosArchivo): string | null {
 export function validarArchivoReceta(a: DatosArchivo): ResultadoArchivo {
   const tipoMime = tipoDe(a)
   if (!tipoMime) return { ok: false, motivo: 'tipo', mensaje: MENSAJE_TIPO }
-  if (a.tamano <= 0) return { ok: false, motivo: 'vacio', mensaje: 'El archivo está vacío.' }
+  if (!Number.isSafeInteger(a.tamano) || a.tamano <= 0) return { ok: false, motivo: 'vacio', mensaje: 'El archivo está vacío.' }
   if (a.tamano > LIMITE_BYTES) return { ok: false, motivo: 'tamano', mensaje: 'La imagen supera el límite de 10 MB.' }
   return { ok: true, tipoMime }
 }
@@ -55,3 +55,4 @@ export function entregarReceta(sesion: Sesion | null | undefined, consulta: Cons
   if (!d.permitido) return { ok: false, motivo: d.motivo }
   return consulta.receta ? { ok: true, receta: consulta.receta } : { ok: false, motivo: 'sin-receta' }
 }
+

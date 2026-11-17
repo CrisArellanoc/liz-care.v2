@@ -2,13 +2,13 @@ import { CalendarDays, FileHeart, House, LogOut, Pill } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { LangToggle } from '../components/LangToggle'
 import { Logo } from '../components/Logo'
-import { Avatar, cx } from '../components/ui'
+import { Avatar, ButtonLink, Card, cx } from '../components/ui'
 import { useI18n } from '../lib/i18n'
 import { useStore } from '../lib/store'
 
 export default function PortalLayout() {
   const { sesion, logout, pacientes } = useStore()
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const navigate = useNavigate()
   const p = pacientes.find((x) => x.id === sesion?.pacienteId)
   const salir = () => { logout(); navigate('/login?rol=paciente') }
@@ -19,6 +19,10 @@ export default function PortalLayout() {
     { to: '/portal/tratamiento', label: t('nav.tratamiento'), icon: Pill },
     { to: '/portal/expediente', label: t('nav.expediente'), icon: FileHeart },
   ]
+
+  if (!p || !p.activo || p.portal !== 'activo') {
+    return <main className="mx-auto max-w-xl p-6"><Card className="p-6"><p role="alert" className="mb-4">{lang === 'en' ? 'Your record is unavailable or portal access is inactive. Sign in again.' : 'Tu expediente no está disponible o el acceso al portal está inactivo. Inicia sesión de nuevo.'}</p><ButtonLink to="/login?rol=paciente" onClick={logout}>{t('nav.salir')}</ButtonLink></Card></main>
+  }
 
   return (
     <div className="min-h-dvh">
@@ -66,3 +70,4 @@ export default function PortalLayout() {
     </div>
   )
 }
+

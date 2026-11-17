@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 
 export function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
   const [zoom, setZoom] = useState(false)
+  const [errorSrc, setErrorSrc] = useState<string | null>(null)
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     document.addEventListener('keydown', k)
@@ -22,10 +23,11 @@ export function Lightbox({ src, alt, onClose }: { src: string; alt: string; onCl
         </div>
       </div>
       <div className="flex-1 overflow-auto p-4" onClick={(e) => e.stopPropagation()}>
-        <img src={src} alt={alt} onClick={() => setZoom(!zoom)}
+        {errorSrc === src ? <p role="alert" className="p-6 text-center text-white">No se pudo previsualizar esta imagen. <a href={src} download className="underline">Descargar archivo</a></p> : <img src={src} alt={alt} onError={() => setErrorSrc(src)} onClick={() => setZoom(!zoom)}
           className={zoom ? 'mx-auto max-w-none cursor-zoom-out' : 'mx-auto max-h-full max-w-full cursor-zoom-in rounded-xl object-contain'}
-          style={zoom ? { width: 'min(1400px, 200%)' } : undefined} />
+          style={zoom ? { width: 'min(1400px, 200%)' } : undefined} />}
       </div>
     </div>
   )
 }
+

@@ -41,6 +41,7 @@ export function separarIdiomas(texto: string): string[] {
 
 export function validarEspecialista(d: DatosEspecialista): ErroresEspecialista {
   const errores: ErroresEspecialista = {}
+  if (d.sector !== 'Público' && d.sector !== 'Privado') errores.sector = 'Selecciona un sector válido.'
   camposRequeridosEspecialista.forEach((k) => {
     const vacio = k === 'idiomas' ? separarIdiomas(d.idiomas).length === 0 : !espacios(d[k])
     if (vacio) errores[k] = 'Este campo es obligatorio.'
@@ -102,3 +103,4 @@ export function buscarEspecialistas(catalogo: Especialista[], f: FiltroEspeciali
 
 export const especialidadesDe = (c: Especialista[]) => [...new Set(c.map((e) => e.especialidad))].sort((a, b) => a.localeCompare(b, 'es'))
 export const idiomasDe = (c: Especialista[]) => [...new Set(c.flatMap((e) => e.idiomas))].sort((a, b) => a.localeCompare(b, 'es'))
+

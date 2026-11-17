@@ -40,3 +40,15 @@ Recorrido completo con dos pacientes: `tests/flujo-integrado.test.ts`.
 - Supabase: Auth del paciente, tablas `especialista`, `atencion`, `historial_medico`, `medicamento_prescrito`, `archivo_receta` con RLS, Storage privado con enlaces firmados y pruebas contra la base real.
 - Decisiones abiertas de v4: corrección del historial por la administradora (CA-07, supuesto), cuenta del paciente (cómo se crea y entrega), qué pasa al terminar el servicio.
 - Validar con Liz Care los supuestos de v4 y las decisiones de arriba.
+
+
+## Correcciones de lógica del 17 de noviembre
+
+- El alta informa acceso pendiente, sin afirmar que se envió correo. La prueba integrada verifica el estado invitado y documenta su fixture de activación.
+- La restauración de sesión rechaza fechas futuras, inválidas o ausentes y pacientes sin identificador.
+- Se rechazan estados y sectores fuera del contrato, cambios de paciente al editar una atención y tamaños de archivo no válidos.
+- El portal presenta un mensaje recuperable si falta el expediente o su acceso está inactivo; el visor ofrece descarga si el navegador no puede previsualizar una imagen.
+- El script PT11 busca Chrome en Windows, macOS y Linux y agrega el historial inicial. Se debe volver a ejecutar para obtener evidencia de sus 45 revisiones.
+- Ocho casos adicionales en `tests/regresiones-logica.casos.ts`, incorporados a Vitest por `regresiones-logica.test.ts`. Los ocho se ejecutaron directamente con Node 24 sobre los módulos TypeScript. La suite completa de Vitest y la compilación quedan pendientes de reproducir en un entorno con dependencias instaladas.
+
+Estas correcciones mantienen la persistencia y la configuración de despliegue existentes.

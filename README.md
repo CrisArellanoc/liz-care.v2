@@ -22,9 +22,9 @@ Abre http://localhost:5173
 npm test
 ```
 
-138 pruebas automatizadas (una por grupo PT de la matriz v4 y un recorrido integrado). La trazabilidad completa
+146 casos automatizados definidos, con cobertura de los grupos PT, un recorrido integrado y ocho regresiones adicionales de lógica. La trazabilidad completa
 RF → módulo → código → prueba está en [`docs/TRAZABILIDAD.md`](docs/TRAZABILIDAD.md).
-La auditoría responsiva (PT11) se corre con `node tools/auditoria-responsiva.mjs http://127.0.0.1:5173 <carpeta>` con la app en marcha.
+La auditoría responsiva (PT11), compatible con Windows, macOS y Linux, se corre con `node tools/auditoria-responsiva.mjs http://127.0.0.1:5173 <carpeta>` con la app en marcha. Si Chrome no está en una ubicación estándar, define `CHROME_PATH`. El recorrido actual incluye el historial inicial: 15 pantallas en tres anchos (45 revisiones); el informe existente de 42 revisiones corresponde a la ejecución anterior.
 
 ## Módulos implementados (`src/modules/`)
 
@@ -52,6 +52,8 @@ Por ahora la app corre con datos en memoria (se reinician al recargar). Para act
 llena la URL y la llave, y pon `VITE_SUPABASE_ACTIVO=true`. Con la bandera activa, el acceso de administración y el alta de pacientes usan la base.
 El aviso de privacidad del prototipo está en `/privacidad`.
 
+Los pacientes nuevos quedan `invitado` o `sin acceso`. Este prototipo no envía correo ni activa cuentas: el alta no acredita acceso al portal. El recorrido integrado comprueba ese rechazo antes de continuar con una fixture explícita de cuentas ya activadas.
+
 ## Cuentas de demostración
 
 | Rol | Correo | Contraseña |
@@ -76,3 +78,4 @@ expediente (RF-06) y formulario de historial médico inicial con alergias obliga
 
 React 19 · TypeScript · Vite · Tailwind CSS 4 · React Router · Lucide icons.
 Fotografías de [Unsplash](https://unsplash.com) (licencia Unsplash). Los nombres de médicos y pacientes son ficticios.
+
