@@ -6,7 +6,8 @@ import {
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Logo, LogoMark } from '../../components/Logo'
-import { Avatar, Badge, Button, ButtonLink, Card, Input, Select, Textarea, cx } from '../../components/ui'
+import { Avatar, Badge, Button, ButtonLink, Card, Field, Input, Select, Textarea, cx } from '../../components/ui'
+import { PAISES } from '../../modules/pacientes/registro'
 import { especialistas } from '../../data/mock'
 import { useStore } from '../../lib/store'
 
@@ -353,24 +354,65 @@ function Privacidad() {
   )
 }
 
+const IDIOMAS_FORM = ['Inglés', 'Español', 'Francés', 'Alemán', 'Portugués', 'Italiano', 'Japonés', 'Coreano', 'Chino', 'Otro']
+const PARENTESCOS_FORM = ['Esposo(a)', 'Pareja', 'Padre', 'Madre', 'Hijo(a)', 'Hermano(a)', 'Amigo(a)', 'Otro']
+
+const formVacio = {
+  nombre: '', apellidoPaterno: '', apellidoMaterno: '', telefono: '', email: '', especialidad: '', idioma: '', mensaje: '',
+  fechaNacimiento: '', sexo: '' as '' | 'F' | 'M' | 'X', nacionalidad: '', emNombre: '', emParentesco: '', emTelefono: '',
+}
+
 function Contacto({ especialidad, setEspecialidad }: { especialidad: string; setEspecialidad: (s: string) => void }) {
-  const { notify } = useStore()
-  const [enviado, setEnviado] = useState(false)
+  const { enviarSolicitud } = useStore()
+  const [enviado, setEnviado] = useState<'cita' | 'informes' | null>(null)
   const [motivo, setMotivo] = useState<'cita' | 'informes'>('cita')
-  const submit = (e: FormEvent) => {
+  const [f, setF] = useState(formVacio)
+  const [errores, setErrores] = useState<Partial<Record<keyof typeof formVacio, string>>>({})
+  const [aviso, setAviso] = useState(false)
+  const [trampa, setTrampa] = useState('') // campo oculto: un bot lo llena, una persona no
+  const [enviando, setEnviando] = useState(false)
+  const [fallo, setFallo] = useState(false)
+  const set = (k: keyof typeof formVacio) => (e: { target: { value: string } }) => { setF((x) => ({ ...x, [k]: e.target.value })); setErrores((x) => ({ ...x, [k]: undefined })) }
+  const esp = especialidad
+
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
-    setEnviado(true)
-    notify(motivo === 'cita' ? 'Solicitud de cita enviada. La administradora te contactará pronto.' : 'Solicitud de informes enviada. Te responderemos pronto.')
+    if (enviando) return
+    if (trampa) { setEnviado(motivo); return } // bot: se finge éxito y no se guarda nada
+    const er: typeof errores = {}
+    const req = (k: keyof typeof formVacio) => { if (!f[k].trim()) er[k] = 'Este dato es obligatorio.' }
+    ;(['nombre', 'apellidoPaterno', 'telefono', 'email'] as const).forEach(req)
+    if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) er.email = 'Escribe un correo válido.'
+    if (motivo === 'cita') {
+      ;(['idioma', 'mensaje', 'fechaNacimiento', 'sexo', 'nacionalidad', 'emNombre', 'emParentesco', 'emTelefono'] as const).forEach(req)
+      if (f.fechaNacimiento && f.fechaNacimiento > new Date().toISOString().slice(0, 10)) er.fechaNacimiento = 'La fecha no puede ser futura.'
+    }
+    setErrores(er)
+    if (Object.keys(er).length) { requestAnimationFrame(() => document.querySelector('#contacto [aria-invalid="true"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })); return }
+    setEnviando(true); setFallo(false)
+    const cita = motivo === 'cita'
+    const ok = await enviarSolicitud({
+      tipo: motivo, nombre: f.nombre.trim(), apellidoPaterno: f.apellidoPaterno.trim(), apellidoMaterno: f.apellidoMaterno.trim() || undefined,
+      telefono: f.telefono.trim(), email: f.email.trim().toLowerCase(), especialidad: esp || undefined, idioma: f.idioma || undefined, mensaje: f.mensaje.trim() || undefined,
+      ...(cita ? {
+        fechaNacimiento: f.fechaNacimiento, sexo: f.sexo || undefined, nacionalidad: f.nacionalidad, pais: PAISES[f.nacionalidad] ?? 'XX',
+        contactoEmergencia: { nombre: f.emNombre.trim(), parentesco: f.emParentesco, telefono: f.emTelefono.trim() },
+      } : {}),
+    })
+    setEnviando(false)
+    if (!ok) { setFallo(true); return }
+    setEnviado(motivo); setF(formVacio); setAviso(false)
   }
+  const inv = (k: keyof typeof formVacio) => ({ invalid: !!errores[k], 'aria-invalid': !!errores[k] })
   return (
     <section id="contacto" className="relative scroll-mt-20 overflow-hidden">
       <img src={asset('images/guanajuato.jpg')} alt="" className="absolute inset-0 size-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-r from-ink-950/95 via-ink-900/85 to-ink-900/50" />
-      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-28">
-        <div className="text-white">
+      <div className="relative mx-auto grid max-w-7xl items-start gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-28">
+        <div className="text-white lg:sticky lg:top-28">
           <p className="text-sm font-bold uppercase tracking-wider text-brand-300">Bienvenido a Guanajuato · Welcome</p>
           <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-5xl">¿Acabas de llegar a México? Nosotros te guiamos.</h2>
-          <p className="mt-5 max-w-lg text-lg text-white/70">Agenda una cita con la administradora o solicita informes. Te contactaremos para guiarte.</p>
+          <p className="mt-5 max-w-lg text-lg text-white/70">Solicita ser paciente o pide informes. La administradora revisa cada solicitud y te contacta para guiarte.</p>
           <div className="mt-8 space-y-3 text-white/85">
             <p className="flex items-center gap-3"><Phone className="size-5 text-brand-300" /> +52 477 000 0000</p>
             <p className="flex items-center gap-3"><MessageCircle className="size-5 text-brand-300" /> WhatsApp disponible 8:00 – 20:00</p>
@@ -379,42 +421,68 @@ function Contacto({ especialidad, setEspecialidad }: { especialidad: string; set
         </div>
         <Card className="p-6 sm:p-8">
           {enviado ? (
-            <div className="py-10 text-center">
+            <div className="py-10 text-center" role="status">
               <div className="mx-auto grid size-16 place-items-center rounded-full bg-brand-50 text-brand-600"><Check className="size-8" /></div>
               <h3 className="mt-5 text-xl font-bold">¡Gracias! Recibimos tu solicitud.</h3>
-              <p className="mt-2 text-ink-500">La administradora te escribirá en menos de 24 horas.</p>
-              <Button variant="outline" className="mt-6" onClick={() => setEnviado(false)}>Enviar otra solicitud</Button>
+              <p className="mt-2 text-ink-500">{enviado === 'cita' ? 'La administradora la revisará y te escribirá al correo que nos diste. Si es aceptada, te enviaremos tu acceso al portal.' : 'La administradora te responderá pronto al correo que nos diste.'}</p>
+              <Button variant="outline" className="mt-6" onClick={() => setEnviado(null)}>Enviar otra solicitud</Button>
             </div>
           ) : (
-            <form onSubmit={submit} className="space-y-4">
+            <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
               <h3 className="text-xl font-bold">¿En qué te podemos ayudar?</h3>
               <div className="grid grid-cols-2 rounded-2xl bg-ink-100 p-1" role="radiogroup" aria-label="Tipo de solicitud">
-                {([['cita', 'Agendar cita'], ['informes', 'Solicitar informes']] as const).map(([v, l]) => (
+                {([['cita', 'Quiero ser paciente'], ['informes', 'Solicitar informes']] as const).map(([v, l]) => (
                   <button key={v} type="button" role="radio" aria-checked={motivo === v} onClick={() => setMotivo(v)}
                     className={cx('rounded-xl py-2.5 text-sm font-bold transition', motivo === v ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-800')}>{l}</button>
                 ))}
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Input required placeholder="Nombre completo" aria-label="Nombre completo" />
-                <Input required placeholder="WhatsApp o teléfono" aria-label="WhatsApp o teléfono" />
+                <Field label="Nombre(s)" required error={errores.nombre}><Input autoComplete="given-name" value={f.nombre} onChange={set('nombre')} {...inv('nombre')} /></Field>
+                <Field label="Primer apellido" required error={errores.apellidoPaterno}><Input autoComplete="family-name" value={f.apellidoPaterno} onChange={set('apellidoPaterno')} {...inv('apellidoPaterno')} /></Field>
+                <Field label="Segundo apellido" optional><Input value={f.apellidoMaterno} onChange={set('apellidoMaterno')} /></Field>
+                <Field label="WhatsApp o teléfono" required error={errores.telefono}><Input type="tel" autoComplete="tel" value={f.telefono} onChange={set('telefono')} {...inv('telefono')} /></Field>
               </div>
-              <Input required type="email" placeholder="Correo electrónico" aria-label="Correo electrónico" />
+              <Field label="Correo electrónico" required error={errores.email} hint="Con este correo entrarás a tu portal si te aceptamos."><Input type="email" autoComplete="email" value={f.email} onChange={set('email')} {...inv('email')} /></Field>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Select value={especialidad} onChange={(e) => setEspecialidad(e.target.value)} aria-label="Especialidad">
-                  <option value="">Especialidad (si la sabes)</option>
-                  {especialidades.map((e) => <option key={e}>{e}</option>)}
-                </Select>
-                <Select defaultValue="" aria-label="Idioma">
-                  <option value="" disabled>Idioma preferido</option>
-                  {['Inglés', 'Español', 'Francés', 'Alemán', 'Portugués', 'Otro'].map((l) => <option key={l}>{l}</option>)}
-                </Select>
+                <Field label="Idioma preferido" required={motivo === 'cita'} optional={motivo !== 'cita'} error={errores.idioma}>
+                  <Select value={f.idioma} onChange={set('idioma')} {...inv('idioma')}><option value="">Selecciona</option>{IDIOMAS_FORM.map((l) => <option key={l}>{l}</option>)}</Select>
+                </Field>
+                <Field label="Especialidad" optional>
+                  <Select value={esp} onChange={(e) => setEspecialidad(e.target.value)}><option value="">Si la sabes</option>{especialidades.map((x) => <option key={x}>{x}</option>)}</Select>
+                </Field>
               </div>
-              <Textarea placeholder={motivo === 'cita' ? 'Cuéntanos brevemente el motivo de tu cita' : '¿Qué información necesitas?'} aria-label="Mensaje" />
+              {motivo === 'cita' && (
+                <>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Fecha de nacimiento" required error={errores.fechaNacimiento}><Input type="date" max={new Date().toISOString().slice(0, 10)} value={f.fechaNacimiento} onChange={set('fechaNacimiento')} {...inv('fechaNacimiento')} /></Field>
+                    <Field label="Sexo" required error={errores.sexo}>
+                      <Select value={f.sexo} onChange={set('sexo')} {...inv('sexo')}><option value="">Selecciona</option><option value="F">Femenino</option><option value="M">Masculino</option><option value="X">Prefiero no decir</option></Select>
+                    </Field>
+                    <Field label="Nacionalidad" required error={errores.nacionalidad} className="sm:col-span-2">
+                      <Select value={f.nacionalidad} onChange={set('nacionalidad')} {...inv('nacionalidad')}><option value="">Selecciona</option>{Object.keys(PAISES).map((n) => <option key={n}>{n}</option>)}</Select>
+                    </Field>
+                  </div>
+                  <p className="pt-1 text-sm font-bold">Contacto de emergencia</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Nombre completo" required error={errores.emNombre}><Input value={f.emNombre} onChange={set('emNombre')} {...inv('emNombre')} /></Field>
+                    <Field label="Parentesco" required error={errores.emParentesco}>
+                      <Select value={f.emParentesco} onChange={set('emParentesco')} {...inv('emParentesco')}><option value="">Selecciona</option>{PARENTESCOS_FORM.map((n) => <option key={n}>{n}</option>)}</Select>
+                    </Field>
+                    <Field label="Teléfono" required error={errores.emTelefono} className="sm:col-span-2"><Input type="tel" value={f.emTelefono} onChange={set('emTelefono')} {...inv('emTelefono')} /></Field>
+                  </div>
+                </>
+              )}
+              <Field label={motivo === 'cita' ? 'Motivo principal de tu atención' : '¿Qué información necesitas?'} required={motivo === 'cita'} optional={motivo !== 'cita'} error={errores.mensaje}>
+                <Textarea value={f.mensaje} onChange={set('mensaje')} maxLength={1000} placeholder={motivo === 'cita' ? 'Ej. Control de hipertensión, dolor lumbar…' : ''} {...inv('mensaje')} />
+              </Field>
+              <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden"><label>Sitio web<input tabIndex={-1} autoComplete="off" value={trampa} onChange={(e) => setTrampa(e.target.value)} /></label></div>
               <label className="flex items-start gap-2.5 text-xs text-ink-500">
-                <input required type="checkbox" className="mt-0.5 size-4 accent-brand-500" />
-                Acepto el aviso de privacidad y el tratamiento de mis datos conforme a la LFPDPPP.
+                <input type="checkbox" checked={aviso} onChange={(e) => setAviso(e.target.checked)} className="mt-0.5 size-4 accent-brand-500" />
+                <span>Acepto el <Link to="/privacidad" className="font-semibold text-brand-600 underline">aviso de privacidad</Link> y el tratamiento de mis datos conforme a la LFPDPPP.</span>
               </label>
-              <Button type="submit" size="lg" className="w-full">{motivo === 'cita' ? 'Solicitar cita' : 'Solicitar informes'} <ArrowRight className="size-4.5" /></Button>
+              {fallo && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700">No pudimos enviar tu solicitud. Revisa tu conexión e inténtalo de nuevo.</p>}
+              <Button type="submit" size="lg" className="w-full" disabled={enviando || !aviso}>{enviando ? 'Enviando…' : motivo === 'cita' ? 'Solicitar ser paciente' : 'Solicitar informes'} <ArrowRight className="size-4.5" /></Button>
+              {!aviso && <p className="text-center text-xs text-ink-400">Acepta el aviso de privacidad para poder enviar.</p>}
             </form>
           )}
         </Card>

@@ -6,6 +6,7 @@ import { Logo } from '../../components/Logo'
 import { Button, Field, Input, cx } from '../../components/ui'
 import { credencialesDemo } from '../../data/mock'
 import type { Rol } from '../../data/types'
+import { supabase } from '../../data/supabase'
 import { useStore } from '../../lib/store'
 
 export default function Login() {
@@ -19,6 +20,7 @@ export default function Login() {
   const [ver, setVer] = useState(false)
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
+  const aviso = (location.state as { aviso?: string } | null)?.aviso
 
   const cambiarRol = (r: Rol) => { setParams({ rol: r }, { replace: true }); setError('') }
 
@@ -75,6 +77,7 @@ export default function Login() {
           </div>
 
           <form onSubmit={submit} className="mt-6 space-y-4">
+            {aviso && !error && <p role="status" className="rounded-2xl border border-brand-200 bg-brand-50 p-3.5 text-sm font-medium text-brand-800">{aviso}</p>}
             {error && (
               <div className="flex animate-fade-up gap-3 rounded-2xl border border-red-200 bg-red-50 p-3.5 text-sm text-red-700" role="alert">
                 <AlertCircle className="size-5 shrink-0" /> {error}
@@ -97,7 +100,7 @@ export default function Login() {
             </Field>
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2 text-ink-600"><input type="checkbox" className="size-4 accent-brand-500" /> Recordarme</label>
-              <button type="button" className="font-semibold text-brand-600 hover:text-brand-700">¿Olvidaste tu contraseña?</button>
+              <Link to="/recuperar" className="font-semibold text-brand-600 hover:text-brand-700">¿Olvidaste tu contraseña?</Link>
             </div>
             <Button type="submit" size="lg" className="w-full" disabled={cargando}>
               {cargando ? <span className="size-5 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : 'Iniciar sesión'}
@@ -108,7 +111,7 @@ export default function Login() {
             <p className="mt-5 text-center text-sm text-ink-500">¿Aún no tienes cuenta? Liz te enviará tu acceso al registrarte.</p>
           )}
 
-          <div className="mt-8 rounded-2xl border border-dashed border-ink-200 p-4">
+          {!supabase && <div className="mt-8 rounded-2xl border border-dashed border-ink-200 p-4">
             <p className="text-xs font-bold uppercase tracking-wider text-ink-400">Cuentas de demostración</p>
             <div className="mt-3 grid gap-2">
               {rol === 'admin' ? (
@@ -131,7 +134,7 @@ export default function Login() {
                 </>
               )}
             </div>
-          </div>
+          </div>}
         </div>
       </div>
     </div>

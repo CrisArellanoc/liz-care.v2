@@ -36,9 +36,21 @@ Recorrido completo con dos pacientes: `tests/flujo-integrado.test.ts`.
 8. **Receta:** JPG, PNG y HEIC hasta 10 MB inclusive; un `.heic` sin tipo informado por el navegador se acepta por extensión.
 9. **Notas internas:** nunca se envían a la vista del paciente (la propiedad no existe en el objeto), no solo se ocultan.
 
+## Persistencia real y despliegue (23 de noviembre)
+
+Supabase quedó activo (`VITE_SUPABASE_ACTIVO=true`): la app arranca vacía y lee todo de la base según el rol de la sesión.
+- **Tablas y RLS** (`supabase/migrations/`): `especialista`, `atencion`, `atencion_nota_interna`, `medicamento_prescrito`, `archivo_receta`, `historial_medico`, `solicitud_contacto`, además de `perfil` y `paciente`. Las notas internas viven en su propia tabla, que solo lee la administración: no llegan al navegador del paciente.
+- **Recetas privadas:** bucket `recetas` no público, con JPG/PNG/HEIC y 10 MB exigidos en el servidor; el navegador solo recibe enlaces firmados de 10 minutos que se generan al mostrar la foto y se renuevan solos mientras la pantalla siga abierta (la foto queda guardada para siempre y se puede ver sin límite de tiempo) y el paciente solo firma archivos de su carpeta.
+- **Cuentas de pacientes:** la administración las crea desde la ficha del paciente (función del servidor `crear-cuenta-paciente`: invitación por correo o contraseña temporal); activación en `/nueva-contrasena`, recuperación en `/recuperar`. La llave `service_role` solo existe en el servidor.
+- **Edición de pacientes:** `/admin/pacientes/:id/editar`; si cambia el correo, la función `cambiar-correo-paciente` lo cambia también en la cuenta de acceso.
+- **Solicitudes del sitio público:** el formulario guarda de verdad (sin sesión solo se puede insertar); bandeja `/admin/solicitudes` con ✓ (crea el paciente con sus datos, de forma atómica) o ✗ (no se integra).
+- **Pruebas contra la base:** `tools/prueba-rls.mjs` (permisos por rol, Storage, solicitudes), `tools/prueba-cuentas.mjs`, `tools/prueba-correo.mjs`; se corren contra el Supabase local (`supabase start`).
+- **Hosting:** `vercel.json` con reescritura para abrir directo `/portal`, `/admin` y los enlaces de correo, y cabeceras de seguridad.
+
 ## Pendiente
-- Supabase: Auth del paciente, tablas `especialista`, `atencion`, `historial_medico`, `medicamento_prescrito`, `archivo_receta` con RLS, Storage privado con enlaces firmados y pruebas contra la base real.
-- Decisiones abiertas de v4: corrección del historial por la administradora (CA-07, supuesto), cuenta del paciente (cómo se crea y entrega), qué pasa al terminar el servicio.
+- Validación del entorno desplegado: recorrido completo con administradora, dos pacientes y usuario sin sesión, y evidencia responsiva (punto 6).
+- Correo de producción: el correo integrado de Supabase limita los envíos por hora; para uso real conectar un servicio SMTP.
+- Decisiones abiertas de v4: corrección del historial por la administradora (CA-07, supuesto), qué pasa al terminar el servicio.
 - Validar con Liz Care los supuestos de v4 y las decisiones de arriba.
 
 

@@ -1,8 +1,8 @@
 # Liz Care — Plataforma y sistema gestor de pacientes
 
-Prototipo de interfaz (solo frontend) para Liz Care, desarrollado por Summit AI SA de CV.
-Los datos son de prueba y viven en memoria: se reinician al recargar la página. La persistencia
-definitiva será Supabase (PostgreSQL, Auth y Storage privado) y está pendiente.
+Aplicación web para Liz Care, desarrollada por Summit AI SA de CV: panel de administración y portal de pacientes.
+Con `VITE_SUPABASE_ACTIVO=true` usa Supabase (PostgreSQL con RLS, Auth y Storage privado); sin esa bandera corre con datos
+de demostración en memoria.
 
 Proyecto de la materia Desarrollo de Aplicaciones y Servicios Virtuales, Universidad Iberoamericana León.
 Equipo: Cristóbal Arellano Carranza y Adrei Blanco Márquez.
@@ -15,6 +15,17 @@ npm run dev
 ```
 
 Abre http://localhost:5173
+
+## Supabase local y despliegue
+
+```bash
+supabase start                 # base, Auth y Storage locales (Docker)
+supabase functions serve       # funciones del servidor (cuentas y correo)
+SUPA_URL=http://127.0.0.1:54321 SUPA_ANON=<publishable> SUPA_SERVICE=<service_role> node tools/prueba-rls.mjs
+```
+
+Variables de entorno de la app: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_ACTIVO` (ver `.env.example`).
+Despliegue en Vercel con `vercel.json`; en Supabase → Authentication → URL Configuration, el *Site URL* y los *Redirect URLs* deben ser el dominio publicado.
 
 ## Pruebas
 

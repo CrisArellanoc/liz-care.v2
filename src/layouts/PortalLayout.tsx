@@ -4,10 +4,11 @@ import { LangToggle } from '../components/LangToggle'
 import { Logo } from '../components/Logo'
 import { Avatar, ButtonLink, Card, cx } from '../components/ui'
 import { useI18n } from '../lib/i18n'
+import { PantallaCarga } from '../components/PantallaCarga'
 import { useStore } from '../lib/store'
 
 export default function PortalLayout() {
-  const { sesion, logout, pacientes } = useStore()
+  const { sesion, logout, pacientes, cargando } = useStore()
   const { t, lang } = useI18n()
   const navigate = useNavigate()
   const p = pacientes.find((x) => x.id === sesion?.pacienteId)
@@ -50,7 +51,7 @@ export default function PortalLayout() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6 md:pb-14">
-        <Outlet />
+        {cargando ? <PantallaCarga /> : <Outlet />}
       </main>
 
       <nav className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-ink-100 bg-white/95 backdrop-blur-md md:hidden">

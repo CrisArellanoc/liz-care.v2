@@ -1,9 +1,11 @@
 import { AlertTriangle, ArrowLeft, HeartPulse, Phone, Save, Send, ShieldAlert, UserRound } from 'lucide-react'
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Avatar, Button, ButtonLink, Card, Field, Input, PageHeader, Select, Toggle } from '../../components/ui'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Avatar, Button, ButtonLink, Card, EmptyState, Field, Input, PageHeader, Select, Toggle } from '../../components/ui'
 import { edad, fechaCorta, nombreCompleto } from '../../lib/format'
 import { useStore } from '../../lib/store'
+import { supabase } from '../../data/supabase'
+import { aDatosAlta, editarPaciente } from '../../modules/pacientes/edicion'
 import { PAISES, registrarPaciente } from '../../modules/pacientes/registro'
 import { buscarDuplicados, datosAltaVacios, type DatosAlta, type ErroresAlta } from '../../modules/pacientes/validacion'
 
@@ -26,9 +28,23 @@ function Seccion({ icon, title, desc, children }: { icon: ReactNode; title: stri
 }
 
 export default function NuevoPaciente() {
-  const { pacientes, sesion, agregarPaciente, notify } = useStore()
+  const { id } = useParams()
+  const { pacientes } = useStore()
+  if (id) {
+    const existente = pacientes.find((p) => p.id === id)
+    if (!existente) {
+      return <Card><EmptyState icon={<UserRound className="size-6" />} title="Paciente no encontrado" text="Es posible que el enlace sea incorrecto." action={<ButtonLink to="/admin/pacientes">Volver a pacientes</ButtonLink>} /></Card>
+    }
+  }
+  return <FormularioPaciente key={id ?? 'nuevo'} id={id} />
+}
+
+function FormularioPaciente({ id }: { id?: string }) {
+  const { pacientes, sesion, agregarPaciente, actualizarPaciente, crearCuenta, notify } = useStore()
   const navigate = useNavigate()
-  const [f, setF] = useState<Form>(datosAltaVacios)
+  const editando = !!id
+  const existente = id ? pacientes.find((p) => p.id === id) : undefined
+  const [f, setF] = useState<Form>(() => (existente ? aDatosAlta(existente) : datosAltaVacios))
   const [errores, setErrores] = useState<ErroresAlta>({})
   const [invitar, setInvitar] = useState(true)
   const [confirmarDuplicado, setConfirmarDuplicado] = useState(false)
@@ -40,15 +56,59 @@ export default function NuevoPaciente() {
     setConfirmarDuplicado(false)
   }
 
-  const { porCorreo, porNombre } = useMemo(() => buscarDuplicados(f, pacientes), [f, pacientes])
-  const duplicados = porCorreo.length ? porCorreo : porNombre
+  const { porCorreo, porNombre } = useMemo(
+    () => buscarDuplicados(f, editando ? pacientes.filter((p) => p.id !== id) : pacientes),
+    [f, pacientes, editando, id],
+  )
+  const duplicados = porCorreo.length ? porCorreo : editando ? [] : porNombre
   const bloqueaCorreo = porCorreo.length > 0
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (guardando) return
     setGuardando(true)
-    const r = await registrarPaciente(f, { sesion, pacientes, guardar: agregarPaciente, invitarAlPortal: invitar, confirmaHomonimo: confirmarDuplicado })
+    if (editando && id) {
+      const r = await editarPaciente(id, f, { sesion, pacientes, actualizar: actualizarPaciente })
+      setGuardando(false)
+      if (r.ok) {
+        const conAcceso = r.paciente.portal !== 'sin acceso' && !!supabase
+        notify(r.cambioCorreo && conAcceso ? 'Datos actualizados. El correo de acceso del paciente también cambió.' : 'Datos actualizados.')
+        navigate(`/admin/pacientes/${id}`)
+        return
+      }
+      switch (r.motivo) {
+        case 'sin-permiso':
+          notify('Solo una administradora puede editar pacientes.', 'error')
+          return
+        case 'no-existe':
+          notify('El paciente ya no existe.', 'error')
+          return
+        case 'datos-invalidos':
+          setErrores(r.errores)
+          notify('Revisa los campos marcados en rojo.', 'error')
+          requestAnimationFrame(() => document.querySelector('[aria-invalid="true"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+          return
+        case 'correo-duplicado':
+          setErrores({ email: 'Este correo ya pertenece a otro paciente registrado.' })
+          notify('No se guardó: el correo ya existe.', 'error')
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+          return
+        case 'error-guardado':
+          notify('No se pudieron guardar los cambios. Tus datos siguen en el formulario; intenta de nuevo.', 'error')
+          return
+      }
+      return
+    }
+    // Con Supabase el portal queda «sin acceso» hasta que la función cree la cuenta e invite.
+    const r = await registrarPaciente(f, { sesion, pacientes, guardar: agregarPaciente, invitarAlPortal: invitar && !supabase, confirmaHomonimo: confirmarDuplicado })
+    if (r.ok && invitar && supabase) {
+      const c = await crearCuenta(r.paciente.id, 'invitar')
+      setGuardando(false)
+      if (c.ok) notify(`${r.paciente.nombre} fue registrado. Le enviamos la invitación a ${r.paciente.email}.`)
+      else notify('Paciente registrado, pero no se pudo enviar la invitación. Usa «Crear acceso al portal» en su ficha.', 'error')
+      navigate(`/admin/pacientes/${r.paciente.id}`)
+      return
+    }
     setGuardando(false)
     if (r.ok) {
       notify(invitar ? `${r.paciente.nombre} fue registrado. El acceso al portal quedó pendiente de activación.` : `${r.paciente.nombre} fue registrado correctamente.`)
@@ -84,9 +144,9 @@ export default function NuevoPaciente() {
   return (
     <form onSubmit={submit} noValidate>
       <PageHeader
-        back={<Link to="/admin/pacientes" className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-ink-500 hover:text-ink-900"><ArrowLeft className="size-4" /> Pacientes</Link>}
-        title="Registrar paciente"
-        subtitle="Captura la información básica. El historial médico lo llenará el paciente desde su portal."
+        back={<Link to={editando ? `/admin/pacientes/${id}` : '/admin/pacientes'} className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-ink-500 hover:text-ink-900"><ArrowLeft className="size-4" /> {editando ? 'Expediente' : 'Pacientes'}</Link>}
+        title={editando ? 'Editar paciente' : 'Registrar paciente'}
+        subtitle={editando ? 'Corrige los datos del paciente. El historial médico no se modifica.' : 'Captura la información básica. El historial médico lo llenará el paciente desde su portal.'}
       />
 
       {duplicados.length > 0 && (
@@ -145,7 +205,7 @@ export default function NuevoPaciente() {
 
           <Seccion icon={<Phone className="size-5" />} title="Contacto" desc="Datos de contacto para coordinar el acceso al portal y el seguimiento.">
             <Field label="Teléfono / WhatsApp" required error={errores.telefono}><Input type="tel" value={f.telefono} onChange={set('telefono')} placeholder="+1 512 555 0142" {...inv('telefono')} /></Field>
-            <Field label="Correo electrónico" required error={errores.email}><Input type="email" value={f.email} onChange={set('email')} placeholder="paciente@correo.com" {...inv('email')} /></Field>
+            <Field label="Correo electrónico" required error={errores.email} hint={editando && existente && existente.portal !== 'sin acceso' && supabase ? 'Este correo también es con el que el paciente inicia sesión; al cambiarlo se actualiza su acceso.' : undefined}><Input type="email" value={f.email} onChange={set('email')} placeholder="paciente@correo.com" {...inv('email')} /></Field>
           </Seccion>
 
           <Seccion icon={<ShieldAlert className="size-5" />} title="Contacto de emergencia" desc="Persona a quien llamar si el paciente no puede comunicarse.">
@@ -166,16 +226,18 @@ export default function NuevoPaciente() {
         </div>
 
         <div className="space-y-4 xl:sticky xl:top-24 xl:self-start">
-          <Card className="p-5">
-            <h3 className="font-bold">Acceso al portal</h3>
-            <p className="mt-1 text-sm text-ink-500">El registro puede quedar pendiente de activación del portal. Este prototipo no envía invitaciones ni crea contraseñas.</p>
-            <div className="mt-4"><Toggle checked={invitar} onChange={setInvitar} label="Dejar acceso pendiente de activación" description={f.email || 'Al correo registrado'} /></div>
-          </Card>
+          {!editando && (
+            <Card className="p-5">
+              <h3 className="font-bold">Acceso al portal</h3>
+              <p className="mt-1 text-sm text-ink-500">{supabase ? 'Se enviará un correo con el enlace para que el paciente cree su contraseña.' : 'El registro puede quedar pendiente de activación del portal. Este prototipo no envía invitaciones ni crea contraseñas.'}</p>
+              <div className="mt-4"><Toggle checked={invitar} onChange={setInvitar} label={supabase ? 'Enviar invitación por correo' : 'Dejar acceso pendiente de activación'} description={f.email || 'Al correo registrado'} /></div>
+            </Card>
+          )}
           <Card className="p-5">
             <p className="text-sm text-ink-500">Los campos con <span className="font-bold text-brand-600">*</span> son obligatorios. Solo se guardan los datos necesarios para la atención del paciente (LFPDPPP).</p>
             <div className="mt-4 grid gap-2">
-              <Button type="submit" size="lg" disabled={guardando}>{invitar ? <Send className="size-4.5" /> : <Save className="size-4.5" />} Guardar paciente</Button>
-              <ButtonLink to="/admin/pacientes" variant="ghost">Cancelar</ButtonLink>
+              <Button type="submit" size="lg" disabled={guardando}>{!editando && invitar ? <Send className="size-4.5" /> : <Save className="size-4.5" />} {editando ? 'Guardar cambios' : 'Guardar paciente'}</Button>
+              <ButtonLink to={editando ? `/admin/pacientes/${id}` : '/admin/pacientes'} variant="ghost">Cancelar</ButtonLink>
             </div>
           </Card>
         </div>

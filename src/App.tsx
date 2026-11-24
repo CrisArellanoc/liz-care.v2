@@ -12,6 +12,7 @@ import NuevaConsulta from './pages/admin/NuevaConsulta'
 import NuevoPaciente from './pages/admin/NuevoPaciente'
 import PacienteDetalle from './pages/admin/PacienteDetalle'
 import Pacientes from './pages/admin/Pacientes'
+import Solicitudes from './pages/admin/Solicitudes'
 import Citas from './pages/portal/Citas'
 import Expediente from './pages/portal/Expediente'
 import HistorialForm from './pages/portal/HistorialForm'
@@ -20,6 +21,8 @@ import Tratamiento from './pages/portal/Tratamiento'
 import Landing from './pages/public/Landing'
 import Login from './pages/public/Login'
 import NotFound from './pages/public/NotFound'
+import NuevaContrasena from './pages/public/NuevaContrasena'
+import RecuperarAcceso from './pages/public/RecuperarAcceso'
 import Privacidad from './pages/public/Privacidad'
 import { puedeAbrirRuta, rutaInicial } from './modules/identidad/permisos'
 
@@ -48,10 +51,14 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/privacidad" element={<Privacidad />} />
+        <Route path="/recuperar" element={<RecuperarAcceso />} />
+        <Route path="/nueva-contrasena" element={<NuevaContrasena />} />
         <Route path="/admin" element={<RequireRol rol="admin"><AdminLayout /></RequireRol>}>
           <Route index element={<Dashboard />} />
+          <Route path="solicitudes" element={<Solicitudes />} />
           <Route path="pacientes" element={<Pacientes />} />
           <Route path="pacientes/nuevo" element={<NuevoPaciente />} />
+          <Route path="pacientes/:id/editar" element={<NuevoPaciente />} />
           <Route path="pacientes/:id" element={<PacienteDetalle />} />
           <Route path="consultas/nueva" element={<NuevaConsulta />} />
           <Route path="agenda" element={<Agenda />} />

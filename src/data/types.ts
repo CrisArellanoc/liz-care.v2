@@ -83,6 +83,10 @@ export interface ArchivoReceta {
   nombreOriginal: string
   tipoMime: string
   tamanoBytes: number
+  /** Ruta en el bucket privado «recetas»; solo existe cuando la receta ya está guardada en Supabase. */
+  ruta?: string
+  /** Archivo elegido en el navegador, pendiente de subir. No se guarda ni se serializa. */
+  archivo?: File
 }
 
 /** v4: una atención es una cita programada o una consulta realizada. */
@@ -113,4 +117,29 @@ export interface Sesion {
   pacienteId?: string
   /** Momento de inicio; la sesión expira pasado el límite de M01. */
   iniciadaEl?: string
+}
+
+export type EstadoSolicitud = 'nueva' | 'aceptada' | 'rechazada'
+
+/** Solicitud enviada desde el sitio público. Una solicitud «cita» trae los datos del alta; «informes» solo contacto. */
+export interface Solicitud {
+  id: string
+  creadaEl: string
+  tipo: 'cita' | 'informes'
+  nombre: string
+  apellidoPaterno: string
+  apellidoMaterno?: string
+  telefono: string
+  email: string
+  especialidad?: string
+  idioma?: string
+  mensaje?: string
+  fechaNacimiento?: string
+  sexo?: 'F' | 'M' | 'X'
+  nacionalidad?: string
+  pais?: string
+  contactoEmergencia?: ContactoEmergencia
+  estado: EstadoSolicitud
+  pacienteId?: string
+  resueltaEl?: string
 }

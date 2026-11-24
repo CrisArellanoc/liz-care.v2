@@ -1,5 +1,6 @@
 import { AlertCircle, CalendarDays, Clock, Expand, Lock, Pill, Timer } from 'lucide-react'
 import { useState } from 'react'
+import { useEnlaceReceta } from '../../lib/useEnlaceReceta'
 import { Lightbox } from '../../components/Lightbox'
 import { Avatar, Badge, Card, cx } from '../../components/ui'
 import type { Medicamento } from '../../data/types'
@@ -13,6 +14,7 @@ export default function Tratamiento() {
   const { t, lang } = useI18n()
   const { ultima, esp, sesion } = usePaciente()
   const [zoom, setZoom] = useState(false)
+  const urlReceta = useEnlaceReceta(ultima?.receta)
 
   if (!ultima) {
     return <Card className="p-10 text-center text-ink-500"><Pill className="mx-auto mb-2 size-8 text-ink-300" />{t('trat.sinTrat')}</Card>
@@ -21,7 +23,7 @@ export default function Tratamiento() {
   const tr = ultima.tratamiento
   // M06: la foto solo se entrega al paciente dueño de la consulta.
   const receta = entregarReceta(sesion, ultima)
-  const fotoReceta = receta.ok ? receta.receta.url : undefined
+  const fotoReceta = receta.ok ? urlReceta : undefined
   const porHorario = (h: Medicamento['horarios'][number]) => tr?.medicamentos.filter((m) => m.horarios.includes(h)) ?? []
 
   return (

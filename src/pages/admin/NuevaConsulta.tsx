@@ -7,6 +7,7 @@ import type { ArchivoReceta, EstadoConsulta, Medicamento } from '../../data/type
 import { fechaLarga, nombreCompleto, normalizar } from '../../lib/format'
 import { useStore } from '../../lib/store'
 import type { ErroresAtencion } from '../../modules/citas/atenciones'
+import { useEnlaceReceta } from '../../lib/useEnlaceReceta'
 import { aArchivoReceta, validarArchivoReceta } from '../../modules/recetas/archivo'
 import { medicamentoVacio } from '../../modules/tratamientos/tratamiento'
 
@@ -53,6 +54,7 @@ export default function NuevaConsulta() {
   const [sinMeds, setSinMeds] = useState(citaPrevia?.tratamiento?.sinMedicamentos ?? false)
   const [indGen, setIndGen] = useState(citaPrevia?.tratamiento?.indicacionesGenerales ?? '')
   const [receta, setReceta] = useState<ArchivoReceta | null>(citaPrevia?.receta ?? null)
+  const urlReceta = useEnlaceReceta(receta ?? undefined)
   const [arrastrando, setArrastrando] = useState(false)
   const [notaVisible, setNotaVisible] = useState(citaPrevia?.notaVisible ?? '')
   const [notaInterna, setNotaInterna] = useState(citaPrevia?.notaInterna ?? '')
@@ -80,7 +82,9 @@ export default function NuevaConsulta() {
     const v = validarArchivoReceta({ nombre: f.name, tipo: f.type, tamano: f.size })
     if (!v.ok) { setErrArchivo(v.mensaje); notify(v.mensaje, 'error'); return }
     setErrArchivo('')
-    setReceta(aArchivoReceta({ nombre: f.name, tipo: f.type, tamano: f.size }, URL.createObjectURL(f)))
+    const a = aArchivoReceta({ nombre: f.name, tipo: f.type, tamano: f.size }, URL.createObjectURL(f))
+    // El archivo se conserva para subirlo al almacenamiento privado al guardar la consulta.
+    setReceta(a ? { ...a, archivo: f } : null)
   }
 
   // M04 valida y guarda: paciente y especialista existentes, resumen en la consulta realizada, tratamiento y receta válidos.
@@ -240,7 +244,7 @@ export default function NuevaConsulta() {
                     <div className="relative h-56 w-full overflow-hidden rounded-2xl border border-ink-100 sm:w-44">
                       {receta.tipoMime === 'image/heic'
                         ? <div className="grid size-full place-items-center bg-ink-50 p-3 text-center text-xs text-ink-500"><span><FileImage className="mx-auto mb-1 size-8 text-ink-400" />{receta.nombreOriginal}<br />(HEIC: la vista previa depende del navegador)</span></div>
-                        : <img src={receta.url} alt="Vista previa de la receta" className="size-full object-cover object-top" />}
+                        : <img src={urlReceta} alt="Vista previa de la receta" className="size-full object-cover object-top" />}
                       <button type="button" onClick={() => setReceta(null)} className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-ink-900/70 text-white hover:bg-ink-900" aria-label="Quitar foto"><X className="size-4" /></button>
                     </div>
                     <div>
@@ -308,7 +312,7 @@ export default function NuevaConsulta() {
                 </div>
               )}
               {notaVisible && <p className="rounded-xl bg-brand-50 p-3 text-sm text-ink-700">{notaVisible}</p>}
-              {receta && receta.tipoMime !== 'image/heic' && <img src={receta.url} alt="" className="h-28 w-full rounded-xl object-cover object-top" />}
+              {receta && receta.tipoMime !== 'image/heic' && <img src={urlReceta} alt="" className="h-28 w-full rounded-xl object-cover object-top" />}
               <p className="flex items-center gap-1.5 text-xs text-ink-400"><Lock className="size-3.5" /> Las notas internas nunca se muestran al paciente.</p>
             </div>
             <div className="grid gap-2 border-t border-ink-100 p-4">

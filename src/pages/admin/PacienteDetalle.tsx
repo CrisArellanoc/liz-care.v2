@@ -1,10 +1,13 @@
 import {
   AlertTriangle, ArrowDownUp, RotateCcw, ArrowLeft, CalendarDays, Cake, ChevronDown, ClipboardList, Eye, FileImage, Globe2, Languages, Lock,
-  Mail, Phone, Pill, Plus, Send, ShieldAlert, Stethoscope, UserRound,
+  KeyRound, Mail, Pencil, Phone, Pill, Plus, Send, ShieldAlert, Stethoscope, UserRound,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { Lightbox } from '../../components/Lightbox'
+import { supabase } from '../../data/supabase'
+import { AccesoPortalModal } from './AccesoPortal'
+import { useEnlaceReceta } from '../../lib/useEnlaceReceta'
 import { Avatar, Badge, Button, ButtonLink, Card, CardHeader, DoctorChip, EmptyState, Tabs, cx } from '../../components/ui'
 import type { Consulta, Especialista } from '../../data/types'
 import { diaMes, edad, fechaCorta, fechaLarga, hora, nombreCompleto, relativo } from '../../lib/format'
@@ -61,8 +64,22 @@ function TratamientoTabla({ c }: { c: Consulta }) {
   )
 }
 
+function RecetaTarjeta({ c, especialidad, onAbrir }: { c: Consulta; especialidad: string; onAbrir: (src: string) => void }) {
+  const url = useEnlaceReceta(c.receta)
+  return (
+    <button onClick={() => url && onAbrir(url)} className="group overflow-hidden rounded-2xl border border-ink-100 bg-white text-left shadow-card transition hover:shadow-float">
+      <div className="h-48 overflow-hidden">{url ? <img src={url} alt="" className="size-full object-cover object-top transition duration-300 group-hover:scale-105" /> : <span className="grid size-full place-items-center bg-ink-50 text-xs text-ink-400">Cargando…</span>}</div>
+      <div className="p-4">
+        <p className="font-bold">{especialidad}</p>
+        <p className="text-sm text-ink-500">{fechaCorta(c.fecha)} · {c.tratamiento?.medicamentos.length ?? 0} medicamentos</p>
+      </div>
+    </button>
+  )
+}
+
 function ConsultaItem({ c, e, onReceta, defaultOpen }: { c: Consulta; e: Especialista; onReceta: (src: string) => void; defaultOpen: boolean }) {
   const [open, setOpen] = useState(defaultOpen)
+  const urlReceta = useEnlaceReceta(c.receta)
   const d = diaMes(c.fecha)
   const futura = c.estado === 'programada'
   return (
@@ -103,8 +120,8 @@ function ConsultaItem({ c, e, onReceta, defaultOpen }: { c: Consulta; e: Especia
                 </div>
               </div>
               {c.receta && (
-                <button onClick={() => onReceta(c.receta!.url)} className="group relative h-40 w-full shrink-0 overflow-hidden rounded-xl border border-ink-100 lg:w-36">
-                  <img src={c.receta.url} alt="Foto de la receta" className="size-full object-cover object-top transition group-hover:scale-105" />
+                <button onClick={() => urlReceta && onReceta(urlReceta)} className="group relative h-40 w-full shrink-0 overflow-hidden rounded-xl border border-ink-100 lg:w-36">
+                  {urlReceta ? <img src={urlReceta} alt="Foto de la receta" className="size-full object-cover object-top transition group-hover:scale-105" /> : <span className="grid size-full place-items-center bg-ink-50 text-xs text-ink-400">Cargando…</span>}
                   <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink-950/80 to-transparent p-2 text-xs font-semibold text-white">Ver receta</span>
                 </button>
               )}
@@ -152,6 +169,7 @@ export default function PacienteDetalle() {
   const { pacientes, consultas, especialistas, sesion, notify } = useStore()
   const [asc, setAsc] = useState(false)
   const [receta, setReceta] = useState<string | null>(null)
+  const [accesoAbierto, setAccesoAbierto] = useState(false)
 
   // CA-03 error: `?simularError=1` reproduce una falla de carga para la prueba PT03; «Reintentar» quita la bandera.
   const fallo = params.get('simularError') === '1'
@@ -187,6 +205,7 @@ export default function PacienteDetalle() {
 
   return (
     <>
+      {accesoAbierto && <AccesoPortalModal paciente={p} onCerrar={() => setAccesoAbierto(false)} />}
       <Link to="/admin/pacientes" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-ink-500 hover:text-ink-900"><ArrowLeft className="size-4" /> Pacientes</Link>
 
       <Card className="relative mb-6 animate-fade-up overflow-hidden">
@@ -204,7 +223,14 @@ export default function PacienteDetalle() {
               <p className="mt-1 text-ink-500">{p.padecimientoPrincipal} · {edad(p.fechaNacimiento)} años · {p.nacionalidad}</p>
             </div>
             <div className="flex flex-wrap gap-2 sm:pt-15">
-              {p.portal === 'invitado' && <Button variant="outline" size="sm" onClick={() => notify(`Invitación reenviada a ${p.email}`)}><Send className="size-4" /> Reenviar acceso</Button>}
+              {supabase && p.portal === 'sin acceso' && <Button variant="secondary" size="sm" onClick={() => setAccesoAbierto(true)}><KeyRound className="size-4" /> Crear acceso al portal</Button>}
+              {p.portal !== 'sin acceso' && <Button variant="outline" size="sm" onClick={async () => {
+                if (!supabase) { notify(`Invitación reenviada a ${p.email}`); return }
+                const { error } = await supabase.auth.resetPasswordForEmail(p.email, { redirectTo: `${window.location.origin}/nueva-contrasena` })
+                if (error) notify('No se pudo enviar el enlace. Inténtalo en unos minutos.', 'error')
+                else notify(`Enlace de acceso enviado a ${p.email}`)
+              }}><Send className="size-4" /> {p.portal === 'invitado' ? 'Reenviar acceso' : 'Enviar enlace de acceso'}</Button>}
+              <ButtonLink to={`/admin/pacientes/${p.id}/editar`} variant="outline" size="sm"><Pencil className="size-4" /> Editar datos</ButtonLink>
               <ButtonLink to={`/admin/consultas/nueva?paciente=${p.id}`} size="sm"><Plus className="size-4" /> Registrar consulta</ButtonLink>
             </div>
           </div>
@@ -350,15 +376,7 @@ export default function PacienteDetalle() {
         {tab === 'recetas' && (
           recetas.length ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {recetas.map((c) => (
-                <button key={c.id} onClick={() => setReceta(c.receta!.url)} className="group overflow-hidden rounded-2xl border border-ink-100 bg-white text-left shadow-card transition hover:shadow-float">
-                  <div className="h-48 overflow-hidden"><img src={c.receta!.url} alt="" className="size-full object-cover object-top transition duration-300 group-hover:scale-105" /></div>
-                  <div className="p-4">
-                    <p className="font-bold">{esp(c.especialistaId).especialidad}</p>
-                    <p className="text-sm text-ink-500">{fechaCorta(c.fecha)} · {c.tratamiento?.medicamentos.length ?? 0} medicamentos</p>
-                  </div>
-                </button>
-              ))}
+              {recetas.map((c) => <RecetaTarjeta key={c.id} c={c} especialidad={esp(c.especialistaId).especialidad} onAbrir={setReceta} />)}
             </div>
           ) : <Card><EmptyState icon={<FileImage className="size-6" />} title="Sin recetas" text="Las fotos de recetas aparecerán aquí al registrarlas en una consulta." /></Card>
         )}

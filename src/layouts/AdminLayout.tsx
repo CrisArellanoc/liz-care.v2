@@ -1,13 +1,15 @@
-import { Bell, CalendarDays, LayoutDashboard, LogOut, Plus, Search, ShieldCheck, Stethoscope, UserPlus, Users } from 'lucide-react'
+import { Bell, CalendarDays, Inbox, LayoutDashboard, LogOut, Plus, Search, ShieldCheck, Stethoscope, UserPlus, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { Avatar, ButtonLink, cx } from '../components/ui'
 import { nombreCompleto, normalizar } from '../lib/format'
+import { PantallaCarga } from '../components/PantallaCarga'
 import { useStore } from '../lib/store'
 
 const nav = [
   { to: '/admin', label: 'Inicio', icon: LayoutDashboard, end: true },
+  { to: '/admin/solicitudes', label: 'Solicitudes', icon: Inbox },
   { to: '/admin/pacientes', label: 'Pacientes', icon: Users },
   { to: '/admin/agenda', label: 'Agenda', icon: CalendarDays },
   { to: '/admin/especialistas', label: 'Especialistas', icon: Stethoscope },
@@ -55,7 +57,9 @@ function BuscadorGlobal() {
 }
 
 export default function AdminLayout() {
-  const { sesion, logout } = useStore()
+  const { sesion, logout, cargando, solicitudes } = useStore()
+  const nuevas = solicitudes.filter((x) => x.estado === 'nueva').length
+  const contador = (to: string) => (to === '/admin/solicitudes' && nuevas > 0 ? nuevas : 0)
   const navigate = useNavigate()
   const salir = () => { logout(); navigate('/login') }
 
@@ -70,6 +74,7 @@ export default function AdminLayout() {
               isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-ink-50 hover:text-ink-900',
             )}>
               <Icon className="size-5" /> {label}
+              {contador(to) > 0 && <span className="ml-auto grid min-w-6 place-items-center rounded-full bg-brand-500 px-1.5 text-xs font-bold text-white" aria-label={`${contador(to)} nuevas`}>{contador(to)}</span>}
             </NavLink>
           ))}
           <div className="px-3 pb-2 pt-6 text-[11px] font-bold uppercase tracking-wider text-ink-400">Acciones rápidas</div>
@@ -117,23 +122,23 @@ export default function AdminLayout() {
         </header>
 
         <main className="mx-auto max-w-7xl px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-12">
-          <Outlet />
+          {cargando ? <PantallaCarga /> : <Outlet />}
         </main>
       </div>
 
       <nav className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-ink-100 bg-white/95 backdrop-blur-md lg:hidden">
-        <div className="grid grid-cols-5 items-end px-2 pt-2">
+        <div className="grid grid-cols-6 items-end px-1 pt-2">
           {nav.slice(0, 2).map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} className={({ isActive }) => cx('flex flex-col items-center gap-1 py-1 text-[11px] font-semibold', isActive ? 'text-brand-600' : 'text-ink-400')}>
-              <Icon className="size-5.5" />{label}
+            <NavLink key={to} to={to} end={end} className={({ isActive }) => cx('flex flex-col items-center gap-1 py-1 text-[10px] font-semibold', isActive ? 'text-brand-600' : 'text-ink-400')}>
+              <span className="relative"><Icon className="size-5.5" />{contador(to) > 0 && <span className="absolute -right-2 -top-1 grid min-w-4 place-items-center rounded-full bg-brand-500 px-1 text-[10px] font-bold leading-4 text-white">{contador(to)}</span>}</span>{label}
             </NavLink>
           ))}
           <Link to="/admin/consultas/nueva" className="mx-auto -mt-6 grid size-14 place-items-center rounded-full bg-brand-500 text-white shadow-lg shadow-brand-500/40" aria-label="Nueva consulta">
             <Plus className="size-6" />
           </Link>
           {nav.slice(2).map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} className={({ isActive }) => cx('flex flex-col items-center gap-1 py-1 text-[11px] font-semibold', isActive ? 'text-brand-600' : 'text-ink-400')}>
-              <Icon className="size-5.5" />{label}
+            <NavLink key={to} to={to} className={({ isActive }) => cx('flex flex-col items-center gap-1 py-1 text-[10px] font-semibold', isActive ? 'text-brand-600' : 'text-ink-400')}>
+              <span className="relative"><Icon className="size-5.5" />{contador(to) > 0 && <span className="absolute -right-2 -top-1 grid min-w-4 place-items-center rounded-full bg-brand-500 px-1 text-[10px] font-bold leading-4 text-white">{contador(to)}</span>}</span>{label}
             </NavLink>
           ))}
         </div>
